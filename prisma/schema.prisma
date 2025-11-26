@@ -1,0 +1,66 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User{
+  id  String  @id @default(cuid())
+  kindeId String @unique
+  email String @unique
+  firstName String  
+  lastName  String
+
+  subscription  Subscription?
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @default(now())
+
+
+}
+
+model Subscription{
+  id  String  @id @default(cuid())
+
+  userId  String  @unique 
+  user User @relation(fields:[userId], references: [id], onDelete: Cascade)
+  
+  stripeCustomerId  String? @unique()
+  stripeSubscriptionId  String? @unique 
+  stripePriceId String? @unique 
+
+
+  status  SubscriptionStatus  @default(ACTIVE)
+  billingcycle  Billing   @default(MONTHLY)
+  createdAt DateTime  @default(now())
+  updateAt  DateTime  @default(now())
+
+  currentPeriodStart  DateTime? 
+  currentPeriodEnd  DateTime?
+
+  cancelAtPeriodEnd Boolean
+
+  canceledAt  DateTime?
+
+}
+
+enum SubscriptionStatus{
+  ACTIVE
+  UNPAID
+  CANCELED 
+  PAST_DUE 
+  INCOMPLETE
+}
+
+enum Billing{
+  MONTHLY
+  YEARLY
+}
