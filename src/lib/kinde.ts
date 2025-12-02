@@ -18,13 +18,19 @@ export interface UserWithSubscription{
     firstName: string | null;
     lastName: string | null;
     profileImage: string | null;
+    createdAt: Date;
+    updatedAt: Date;
     subscription: {
         id: string;
         status: string;
+        billingCycle: string;
         plan: {
             id: string;
             name: string;
-            features: number;
+            description: string | null;
+            priceMonthly: number;
+            priceYearly: number;
+            features: any;
         }
     } | null;
 }
@@ -33,8 +39,13 @@ export interface UserWithSubscription{
 export async function getUserWithSubscription(): Promise<UserWithSubscription | null>{
     const kindeUser = await getUser();
 
-    const user = await prisma.user.findUnique({
-        where:{kindeId: kindeUser?.id},
+    if (!kindeUser?.id) {
+        return null;
+    }
+
+    // Récupérer l'utilisateur de la base de données
+    let user = await prisma.user.findUnique({
+        where:{kindeId: kindeUser.id},
         include:{
             subscription: {
                 include:{
@@ -42,8 +53,46 @@ export async function getUserWithSubscription(): Promise<UserWithSubscription | 
                 }
             }
         }
+    });
 
-    })
+    // Si l'utilisateur n'existe pas, le créer
+    if (!user) {
+        user = await prisma.user.create({
+            data: {
+                kindeId: kindeUser.id,
+                email: kindeUser.email || '',
+                firstName: kindeUser.given_name,
+                lastName: kindeUser.family_name,
+                profileImage: kindeUser.picture,
+            },
+            include: {
+                subscription: {
+                    include: {
+                        plan: true,
+                    }
+                }
+            }
+        });
+    } else {
+        // Synchroniser la photo de profil si elle a changé
+        if (user.profileImage !== kindeUser.picture) {
+            user = await prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    profileImage: kindeUser.picture,
+                    firstName: kindeUser.given_name,
+                    lastName: kindeUser.family_name,
+                },
+                include: {
+                    subscription: {
+                        include: {
+                            plan: true,
+                        }
+                    }
+                }
+            });
+        }
+    }
 
     return user as UserWithSubscription;
 }
